@@ -1,0 +1,31 @@
+#+Title: Script to run experiments
+
+This is a simple script to run operational research experiments.
+It tries to abstract much of the struct of the code it self, allowing to quickly run a bunch of instances and save its logs.
+
+Some of our current features:
+- We take care of clonning, checking out commits and its make.
+- We use git's commit checksum to avoid running the same instances against the same code.
+
+* Usage
+Clone this repo then run =python script.py PROJ_NAME=.
+The =PROJ_NAME= can be either a path to a local git repo or a remote one.
+/Yes, it must be a git repo, you maniac/.
+
+By default we assume the following basic struct:
+- =PROJ_NAME/bin= :: contains all the binaries to be run
+- =PROJ_NAME/inst= :: contains all the instances to be run
+but all of this can be changed using the respective flags (see =python script.py --help=).
+
+Also, by default, we use the current head of the main branch.
+You can change it by using =-c= and listing all commits you want us to work with.
+
+All logs are saved on a folder =logs= in the current path (not the project's) following the format =commit_binary_instance.log=.
+
+* Future plans
+In no particular order:
+- better error handling.
+- support for recursive struct of the instances folder.
+- support for parameters for each binary
+- support command for multiple bin and instances
+- add a local configuration to aid as default values for the commands
