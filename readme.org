@@ -6,6 +6,7 @@ It tries to abstract much of the struct of the code it self, allowing to quickly
 Some of our current features:
 - We take care of clonning, checking out commits and its make.
 - We use git's commit checksum to avoid running the same instances against the same code.
+- We aim to be blackout resistant: we only save an instance result if the process ran to completion (even if it fails)
 
 * Usage
 Clone this repo then run =python script.py PROJ_NAME=.

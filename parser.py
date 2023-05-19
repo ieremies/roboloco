@@ -7,31 +7,40 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument("repository", help="Git repository path (can be a remote URL).")
-# Can have multiple commits
 parser.add_argument(
     "-c",
     "--commit",
-    help="Commit hash reference in the main branch. By default we will use the current HEAD.",
-    nargs="*",
-    default=["HEAD"],
+    help="Must be a list of commits hashs separeted by commas.",
+    nargs=1,
+    default="HEAD",
 )
 parser.add_argument(
     "-b",
     "--binary",
-    help="Binary to run. By default we will run all binaries in the PROJ_NAME/bin folder.",
+    help=(
+        "Must be either the name of the folder (string) inside PROJ_NAME with the binaries "
+        "(all executables inside will be run). "
+        "It can also be a list of executables given by its relative path to the project path."
+    ),
     nargs="*",
     default=None,
 )
 parser.add_argument(
     "-i",
     "--instance",
-    help="Instance(s) to run. By default we will run all instances in the PROJ_NAME/inst folder. If the argument is a number, we will run the instance with that number. If the argument is a range, we will run all instances in that range. If the argument is also a folder, we run all instances directly under it.",
+    help=(
+        "Must be either a (string) path relative (to project) to a folder, "
+        "all instances inside it will be used as the first argument to all binary. "
+        "It can also be a list of instances given by its relative path to the project path. "
+        "Lastly, it can be False, in which case we will not use  any instance. "
+        "By default we will use all instances in the PROJ_NAME/inst folder."
+    ),
     nargs="*",
-    default=None,
+    default="inst",
 )
 parser.add_argument(
     "-o",
     "--output",
-    help="Output folder. By default we will use the PROJ_NAME/logs folder.",
+    help="Output folder. This will be used to redirect the stdout and stderr of your experiments.",
     default="logs",
 )
