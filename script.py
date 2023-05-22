@@ -7,7 +7,7 @@ Gostaríamos que o script seja capaz de indentificar quais experimentos
 já foram realizados e quais ainda precisam ser realizados, recuperando
 em caso de falhas.
 """
-from parser import parser
+import argparse
 import sys
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -18,9 +18,28 @@ from tqdm import tqdm
 repo_path = "proj_path"
 proj_name = "proj_name"
 commit_list = "HEAD"
-bin_path = "bin"
-inst_path = "inst"
+command = "command"
 log_path = "./logs"
+
+# Command line parser
+# python script.py https://github.com/ieremies/mest-code "[exe:bin] [file:inst]" -c HEAD,HEAD~1
+# TODO python script.py gh:ieremies/mest-code
+parser = argparse.ArgumentParser(
+    prog="RoboLOCo",
+    description="Run experiments and generate reports",
+    epilog="And thanks for all the fish",
+)
+parser.add_argument("repository", help="Git repository path (can be a remote URL).")
+parser.add_argument(
+    "command", help="Command used to run experiments (see readme for syntax)."
+)
+parser.add_argument(
+    "-c",
+    "--commit",
+    help="Must be a list of commits hashs separeted by commas.",
+    nargs=1,
+    default=["HEAD"],
+)
 
 
 def clone_repository():
@@ -35,8 +54,9 @@ def clone_repository():
     proj_name = repo_path.split("/")[-1].split(".")[0]
 
     # if the repository is a remote url
-    if repo_path.startswith("http") and not os.path.exists(f"./{proj_name}"):
-        os.system(f"git clone {repo_path} {proj_name}")
+    if repo_path.startswith("http"):
+        if not os.path.exists(f"./{proj_name}"):
+            os.system(f"git clone {repo_path} {proj_name}")
         repo_path = proj_name  # new path
     else:
         # otherwise, just pull the latest changes
@@ -79,33 +99,41 @@ def run_experiments(commit, binary, instance):
     os.system(cmd)
 
 
+def find_exec(path):
+    global repo_path
+    print(path)
+    if not os.path.exists(f"{repo_path}/{path}"):
+        return path.split(",")
+    return (
+        os.popen(f"find {repo_path}/{path} -executable -type f")
+        .read()
+        .strip()
+        .split("\n")
+    )
+
+
+def find_files(path):
+    global repo_path
+    if not os.path.exists(f"{repo_path}/{path}"):
+        return path.split(",")
+    return os.popen(f"find {repo_path}/{path} -type f").read().strip().split("\n")
+
+
 def run_for_commit(commit):
     global bin_path, inst_path
 
-    # we assume if the provided folder does not exists, its a list of binaries
-    if not os.path.exists(f"./{repo_path}/{bin_path}"):
-        bin_list = bin_list.split(",")
-    else:
-        bin_list = (
-            os.popen(f"find ./{repo_path}/{bin_path} -executable -type f")
-            .read()
-            .strip()
-            .split("\n")
-        )
-
-    # TODO allow to not have instances
-    if not os.path.exists(f"./{repo_path}/{inst_path}"):
-        inst_list = inst_list.split(",")
-    else:
-        inst_list = (
-            os.popen(f"find ./{repo_path}/{inst_path} -type f")
-            .read()
-            .strip()
-            .split("\n")
-        )
-
-    # TODO allow additional parameters
-    params = [bin_list, inst_list]
+    params = []
+    for c in command:
+        if c[0] == "[":
+            c = c.split(":")
+            if "[exe" in c[0]:
+                # [:-1] to remove the last char, which is ']'
+                params.append(find_exec(c[-1][:-1]))
+            if "[file" in c[0]:
+                params.append(find_files(c[-1][:-1]))
+            # TODO range param
+        else:
+            params.append([c])
 
     total_tasks = 1
     for p in params:
@@ -136,8 +164,8 @@ def run():
 
 if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
+    print(args)
     repo_path = args.repository
-    commit_list = args.commit.split(",")
-    binary_list = args.binary
-    instance_list = args.instance if "False" not in args.instance else None
+    command = args.command.split()
+    commit_list = args.commit
     run()
