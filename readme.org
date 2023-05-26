@@ -17,9 +17,11 @@ We will then clone/update the project in the provided path, =make= it (if necess
 All results (/stdout/ and /stderr/) will be saved to a log file.
 
 Examples:
-- =python script.py github:alice/dsatur "[exec:bin] [file:inst] enum"=
-- =python script.py https://gitlab.com/bob/ilp "python pli.py [file:inst] [1,2,3,4,10]"=
-- =python script.py gl:chris/doc= (see [[roboloco.conf]])
+#+begin_src bash
+python script.py github:alice/dsatur "[exec:bin] [file:inst] enum"
+python script.py https://gitlab.com/bob/ilp "python pli.py [file:inst] [1,2,3,4,10]"
+python script.py gl:chris/doc #(see roboloco.conf section)
+#+end_src
 
 We will go over each parameter.
 
