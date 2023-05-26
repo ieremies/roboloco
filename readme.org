@@ -1,32 +1,77 @@
 #+Title: Script to run experiments
 
 This is a simple script to run operational research experiments.
-It tries to abstract much of the struct of the code it self, allowing to quickly run a bunch of instances and save its logs.
+It tries to abstract much of the struct of the code it self, allowing to quickly run a bunch of combinations of instances and parameters and save its logs.
 
 Some of our current features:
-- We take care of clonning, checking out commits and its make.
-- We use git's commit checksum to avoid running the same instances against the same code.
-- We aim to be blackout resistant: we only save an instance result if the process ran to completion (even if it fails)
+- Robust syntax that allows to quickly deploy in a new machine.
+- We take care of cloning, checking out commits and its make (if applicable).
+- We use git's commit checksum to avoid running the same instances/parameters against the same code.
+- We aim to be blackout resistant: in case of lost of power or sudden shutdown of the machine, all logs are already in disc.
 
 * Usage
-Clone this repo then run =python script.py PROJ_NAME=.
-The =PROJ_NAME= can be either a path to a local git repo or a remote one.
-/Yes, it must be a git repo, you maniac/.
+First you need to get the =script.py= (there is no dependency).
 
-By default we assume the following basic struct:
-- =PROJ_NAME/bin= :: contains all the binaries to be run
-- =PROJ_NAME/inst= :: contains all the instances to be run
-but all of this can be changed using the respective flags (see =python script.py --help=).
+Then, just =python script.py PROJECT_PATH COMMAND_STRING= (command string must be quoted).
+We will then clone/update the project in the provided path, =make= it (if necessary) and use the command string to run the experiments.
+All results (/stdout/ and /stderr/) will be saved to a log file.
 
-Also, by default, we use the current head of the main branch.
-You can change it by using =-c= and listing all commits you want us to work with.
+Examples:
+- =python script.py github:alice/dsatur "[exec:bin] [file:inst] enum"=
+- =python script.py https://gitlab.com/bob/ilp "python pli.py [file:inst] [1,2,3,4,10]"=
+- =python script.py gl:chris/doc= (see [[roboloco.conf]])
 
-All logs are saved on a folder =logs= in the current path (not the project's) following the format =commit_binary_instance.log=.
+We will go over each parameter.
 
-* Future plans
-In no particular order:
-- better error handling.
-- support for recursive struct of the instances folder.
-- support for parameters for each binary
-- support command for multiple bin and instances
-- add a local configuration to aid as default values for the commands
+** Project Path
+Can be either a local path, absolute or relative, (abbreviations like =~/= will work) or a link to a remote.
+Either way, it must be a git repo.
+
+If it's a local path, we will try to update it by pulling from =origin=.
+Be aware that any changes made in this local branch will be discarded.
+
+In the case of using remotes, the "https" link or any of the following abbreviations will work: =gh:user/repo=, =github:user/repo=, =gl:user/repo= and =gitlab:user/repo=, all will be expanded to be =https://(github|gitlab).com/user/repo=.
+Also, =ic:user/repo= will resolve to =https://gitlab.ic.unicamp.br/user/repo=.
+
+In any case, we will clone the repo into the current path. If its already cloned, it will be treated as a local path, as described above.
+
+** Command string
+This is where you can specify how to run your experiments.
+We will use the following string to explain each part: ="[exec:bin] [file:~/inst] enum [1,2,5]"=
+
+- =[exec:DIRECTORY]= :: will be interpreted as the list of executables inside the =DIRECTORY= (relative to =PROJECT_PATH= or absolute). Useful for C/C++ projects.
+  In our example, the first parameter would be selected from the list of executables inside the =PROJECT_PATH/bin= folder.
+- =[file:DIRECTORY]= :: will be interpreted as the list of (any) files inside the =DIRECTORY= (relative to =PROJECT_PATH= or absolute). Useful for instance files.
+  In our exemple, the second parameter would be selected from the list of files inside the =~/inst= folder.
+  This and the above =exec:= syntax will also search recursively.
+- =[LIST]= :: any list of comma separated values will be treated as a list of those. Useful when specifying certain files (instead of all files in directory, as the above options) or a list of possible parameters for your experiments (numbers or names).
+  In our example, the last parameter would be selected from the list =["1", "2", "5"]=.
+- others :: any other words not encapsulated by =[ ]= will be treated as a list with only the word. This can be useful when running python code.
+  In our example, the =enum= would be present in all experiments.
+
+In all cases, we run all combinations of all the lists derived from the above rules.
+Keep in mind, when we say "run", we merely refer to a shell call.
+
+* Other details
+When running the experiments from the list, we will parallelize then using the most physical cores the machine has, so keep that in mind when designing your experiments.
+That can be changed using the flag =--single=.
+
+We will divert all /stdout/ and /stderr/ using =&>= to the log file inside the =logs/= folder created in the current path (not the project's path).
+Each log file will be named using the current commit (short) hash and the command used to create it.
+For each run, if a log file with corresponding name is already present, we will just skip it.
+
+Lastly, you can run the experiments for a number of commits by providing a list of then after the flag =-c/--commit=, like =-c asd1as,HEAD,HEAD~2=.
+
+* roboloco.conf
+<<roboloco.conf>>
+If the =COMMAND_STRING= is not present or the =--conf= flag is used, we will check for the file named =roboloco.conf= inside your project.
+Any values specified in there will be use to fill the blanks, but will not override any already set parameter.
+This can be useful when you always have to run the same experiments each time.
+
+See a example to place inside your =PROJECT_PATH/roboloco.conf= (it can be a hidden file).
+#+begin_src conf
+[DEFAULT]
+command_string = [exec:bin] [file:inst] enum [1,2,3]
+commit = HEAD,HEAD~1
+single = True
+#+end_src
