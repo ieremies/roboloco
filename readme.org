@@ -39,7 +39,7 @@ In any case, we will clone the repo into the current path. If its already cloned
 
 ** Command string
 This is where you can specify how to run your experiments.
-We will use the following string to explain each part: ="[exec:bin] [file:~/inst] enum [1,2,5]"=
+We will use the following string to explain each part: =[exec:bin] [file:~/inst] enum [1,2,5]=
 
 - =[exec:DIRECTORY]= :: will be interpreted as the list of executables inside the =DIRECTORY= (relative to =PROJECT_PATH= or absolute). Useful for C/C++ projects.
   In our example, the first parameter would be selected from the list of executables inside the =PROJECT_PATH/bin= folder.
@@ -65,7 +65,6 @@ For each run, if a log file with corresponding name is already present, we will 
 Lastly, you can run the experiments for a number of commits by providing a list of then after the flag =-c/--commit=, like =-c asd1as,HEAD,HEAD~2=.
 
 * roboloco.conf
-<<roboloco.conf>>
 If the =COMMAND_STRING= is not present or the =--conf= flag is used, we will check for the file named =roboloco.conf= inside your project.
 Any values specified in there will be use to fill the blanks, but will not override any already set parameter.
 This can be useful when you always have to run the same experiments each time.
