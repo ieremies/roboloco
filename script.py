@@ -6,6 +6,7 @@ from itertools import product
 from tqdm import tqdm
 from configparser import ConfigParser
 import subprocess
+import shlex
 
 # Varibles that will be set by the parser or config
 repo_path = "proj_path"
@@ -14,6 +15,10 @@ commit_list = "HEAD"
 command = "command"
 log_path = "./logs"
 single = False
+make_command = "make"
+git = True
+dry_run = False
+time_limit = 60 * 5
 
 
 def expand_links(link: str) -> str:
@@ -61,7 +66,8 @@ def clean_commit_list():
 
 def checkout_and_make(commit):
     global repo_path
-    os.system(f"git -C {repo_path} checkout {commit}")
+    if git:
+        os.system(f"git -C {repo_path} checkout {commit}")
     # if Makefile exists inside repo_path
     if os.path.exists(f"{repo_path}/Makefile"):
         os.system(f"make -C {repo_path}")
@@ -80,15 +86,28 @@ def run_experiments(commit, *args):
         return
 
     cmd = " ".join(args)
-    cmd += f" &> {log}"
+    # cmd += f" &> {log}"
 
     # TODO pipe
-    os.system(cmd)
+    if dry_run:
+        print(cmd)
+        return
+    try:
+        cmd_args = shlex.split(cmd)
+
+        with open(log, "w") as file:
+            # Run the command with stderr redirected to the file
+            # print(cmd_args)
+            subprocess.run(cmd_args, timeout=time_limit, stderr=file, text=True)
+
+    except subprocess.TimeoutExpired:
+        pass
+    except subprocess.CalledProcessError as e:
+        pass
 
 
 def find_exec(path):
     global repo_path
-    print(path)
     if not os.path.exists(f"{repo_path}/{path}"):
         return path.split(",")
     return (
@@ -103,14 +122,21 @@ def find_files(path):
     global repo_path
     if not os.path.exists(f"{repo_path}/{path}"):
         return path.split(",")
-    return os.popen(f"find {repo_path}/{path} -type f").read().strip().split("\n")
+    # we now run instance in order of size
+    return [
+        file.split()[-1]
+        for file in os.popen(f"find {repo_path}/{path} -type f -ls | sort -n -k7")
+        .read()
+        .strip()
+        .split("\n")
+    ]
+    # return os.popen(f"find {repo_path}/{path} -type f").read().strip().split("\n")
 
 
 def run_for_commit(commit):
     global bin_path, inst_path, single
 
     params = []
-    print(command)
     for c in command:
         if c[0] != "[":
             params.append(c.split(","))
@@ -137,7 +163,7 @@ def run_for_commit(commit):
         ]
 
         with tqdm(total=total_tasks) as pbar:
-            for future in as_completed(futures):
+            for _ in as_completed(futures):
                 pbar.update()
 
 
@@ -148,9 +174,13 @@ def run():
     if not os.path.exists(log_path):
         os.mkdir(log_path)
 
-    for commit in commit_list:
-        # checkout_and_make(commit)
-        run_for_commit(commit)
+    if git:
+        for commit in commit_list:
+            checkout_and_make(commit)
+            run_for_commit(commit)
+    else:
+        checkout_and_make("local")
+        run_for_commit("local")
 
 
 # Command line parser
@@ -178,7 +208,28 @@ parser.add_argument(
     default=None,
 )
 parser.add_argument(
-    "--single", help="Run experiments in a single thread.", default=False
+    "--single",
+    help="Run experiments in a single thread.",
+    action="store_true",
+)
+parser.add_argument(
+    "-m", "--make-comand", help="Command used to make the project.", default="make"
+)
+parser.add_argument(
+    "--no-git",
+    help="Do not use git to checkout commits.",
+    action="store_true",
+)
+parser.add_argument(
+    "--dry-run",
+    help="Do not run the experiments, just print the commands.",
+    action="store_true",
+)
+parser.add_argument(
+    "-tl",
+    "--time-limit",
+    help="Time limit for each instance (in seconds)",
+    default=60*5, # 5 minutes
 )
 
 if __name__ == "__main__":
@@ -213,5 +264,20 @@ if __name__ == "__main__":
         single = bool(config["DEFAULT"]["single"])
     else:
         single = False
+
+    if args.make_comand is not None:
+        make_command = args.make_comand
+    elif config is not None and "make_command" in config["DEFAULT"]:
+        make_command = config["DEFAULT"]["make_command"]
+    else:
+        make_command = "make"
+
+    if args.no_git is not None:
+        git = not bool(args.no_git)
+
+    if args.dry_run is not None:
+        dry_run = bool(args.dry_run)
+
+    time_limit = int(args.time_limit)
 
     run()
