@@ -142,8 +142,9 @@ def parse_result(file_path: str):
         "lower": 0.0,
         "upper": 0.0,
         "time": 0.0,
-        "branchs": {},
+        "tl": True,
         "heu": {},
+        "branchs": {},
         "solver": [],
     }
     branchs = {"created": 0, "branched": 0, "contracts": 0, "conflicts": 0, "time": 0.0}
@@ -166,7 +167,14 @@ def parse_result(file_path: str):
                 # get the lower bound in the form "INFO| Solved with value %f"
                 general["lower"] = float(lines[i].split("INFO| Solved with value ")[1])
 
-            # TODO upper bound
+            if " WARN| SOL: " in lines[i]:
+                # get the upper bound in the form "WARN| SOL: %f ="
+                general["upper"] = float(
+                    lines[i].split("WARN| SOL: ")[1].split(" =")[0]
+                )
+                # TODO validate sol
+            if "atexit" in lines[i]:
+                general["tl"] = False
 
             if "Adding branch on " in lines[i]:
                 branchs["created"] += 1
@@ -198,7 +206,7 @@ if __name__ == "__main__":
     comp = {}
     # for each file in the directory in argv[1]
     for file in os.listdir(sys.argv[1]):
-        instance = file.split("_")[-1]
+        instance = file.split("_")[-1].strip(".col.log")
         comp[instance] = parse_result(sys.argv[1] + file)
     # transform into json
     json_result = json.dumps(comp, indent=4)
